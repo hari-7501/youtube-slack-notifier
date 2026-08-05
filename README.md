@@ -49,17 +49,18 @@ Scheduled workflows only run from the **default branch**, so make sure this is p
 
 ### 4. Do a dry run
 
-**Actions → youtube-to-slack → Run workflow**, leave `dry_run` checked, **Run**. The log
-shows exactly what it would post without touching Slack or committing anything. This is
-also the safest way to confirm the feeds parse.
+**Actions → youtube-to-slack → Run workflow**, mode `dry-run`, **Run**. The log shows
+exactly what it would post without touching Slack or committing anything. This is also
+the safest way to confirm the feeds still parse.
 
 ### 5. Seed the state
 
-Run the workflow again with `dry_run` **unchecked**. The first real run finds
-`state.json` empty, records every video currently in all six feeds as already-seen,
-posts nothing, and commits the state. From then on only genuinely new uploads notify.
+Run it once more with mode `seed`. That records every video currently in all six feeds as
+already-seen, posts nothing, and commits `state.json`. From then on only genuinely new
+uploads notify. (Seeding needs no webhook, so you can do it before step 2 if you like.)
 
-That cold-start guard is per channel, so adding a channel later never floods you either.
+The cold-start guard is per channel, so a channel you add later never floods you either —
+its first sighting is always silent.
 
 ## Adding or removing a channel
 

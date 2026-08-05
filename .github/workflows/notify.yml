@@ -7,10 +7,11 @@ on:
     - cron: "7,37 * * * *"
   workflow_dispatch:
     inputs:
-      dry_run:
-        description: "Print what would be posted without posting or committing"
-        type: boolean
-        default: true
+      mode:
+        description: "dry-run prints only; seed marks everything seen; live notifies"
+        type: choice
+        default: dry-run
+        options: [dry-run, seed, live]
 
 permissions:
   contents: write
@@ -28,16 +29,17 @@ jobs:
       - name: Check feeds and notify
         env:
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
-          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
+          MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.mode || 'live' }}
         run: |
-          if [ "$DRY_RUN" = "true" ]; then
-            python3 notify.py --dry-run
-          else
-            python3 notify.py
-          fi
+          case "$MODE" in
+            dry-run) python3 notify.py --dry-run ;;
+            seed)    python3 notify.py --seed ;;
+            live)    python3 notify.py ;;
+            *)       echo "unknown mode: $MODE"; exit 1 ;;
+          esac
 
       - name: Commit state if it changed
-        if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.dry_run) }}
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.mode != 'dry-run' }}
         run: |
           if git diff --quiet -- state.json; then
             echo "state unchanged, nothing to commit"
