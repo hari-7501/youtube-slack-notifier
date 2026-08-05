@@ -1,0 +1,50 @@
+name: youtube-to-slack
+
+on:
+  schedule:
+    # :07 and :37 rather than :00/:30 — GitHub names the top of every hour as a
+    # high-load window for scheduled workflows, so off-the-hour runs start sooner.
+    - cron: "7,37 * * * *"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Print what would be posted without posting or committing"
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: youtube-to-slack
+  cancel-in-progress: false
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check feeds and notify
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
+        run: |
+          if [ "$DRY_RUN" = "true" ]; then
+            python3 notify.py --dry-run
+          else
+            python3 notify.py
+          fi
+
+      - name: Commit state if it changed
+        if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.dry_run) }}
+        run: |
+          if git diff --quiet -- state.json; then
+            echo "state unchanged, nothing to commit"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add state.json
+          git commit -m "state: seen videos as of $(date -u '+%Y-%m-%d %H:%MZ')"
+          git push
